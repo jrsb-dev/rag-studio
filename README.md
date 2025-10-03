@@ -1,6 +1,7 @@
 # RAG Studio
+This is a work in progress. 
 
-> **Open-source testing platform to discover what RAG approach works best for YOUR corpus.**
+> **Open-source local testing platform to discover what RAG approach works best for YOUR corpus.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -111,19 +112,10 @@ rag-studio/
 ## 📖 Documentation
 
 - [Core Idea](./docs/core-idea.md) - Understanding the problem & solution
-- [Technical Spec](./docs/core-spec.md) - Detailed architecture & implementation
-- [API Documentation](http://localhost:8000/docs) - Interactive API docs (when running)
+- [Technical Spec](./docs/spec_core.md) - Detailed architecture & implementation
+- [API Documentation](http://localhost:8000/docs) - Interactive API docs (when running (!))
 
-## 🛣️ Roadmap
-
-- [x] MVP Foundation (Week 1-2)
-- [ ] Core RAG Logic (Week 3-4)
-- [ ] Frontend UI (Week 5-6)
-- [ ] Experiments & Results (Week 7)
-- [ ] Testing & Polish (Week 8-9)
-- [ ] Public Launch (Week 10)
-
-See [Technical Spec](./docs/core-spec.md#13-timeline) for detailed timeline.
+See [Technical Spec](./docs/spec_core.md#13-timeline) for detailed timeline.
 
 ## 🤝 Contributing
 
@@ -144,4 +136,4 @@ Inspired by:
 
 **Stop guessing. Start testing on YOUR corpus.**
 
-Built with ❤️ by [Jeroen Breemhaar](https://github.com/yourusername)
+Built with ❤️ by [Jeroen Breemhaar @ slashslash](https://www.slashslash.nl)
