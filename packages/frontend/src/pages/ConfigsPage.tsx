@@ -51,26 +51,18 @@ export default function ConfigsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Button variant="link" asChild className="mb-2 pl-0">
-            <Link to={`/projects/${projectId}`}>
-              ← Back to Project
-            </Link>
-          </Button>
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold">RAG Configurations</h1>
-              {project && (
-                <p className="text-muted-foreground mt-1">{project.name}</p>
-              )}
-            </div>
-            <Button onClick={() => setIsCreateModalOpen(true)}>
-              Create Configuration
-            </Button>
+    <div className="container mx-auto px-6 py-8">
+      <div className="mb-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold">RAG Configurations</h1>
+            <p className="text-muted-foreground mt-1">Create and manage RAG configurations</p>
           </div>
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            Create Configuration
+          </Button>
         </div>
+      </div>
 
         {isLoading && (
           <div className="text-center py-12">
@@ -127,30 +119,59 @@ export default function ConfigsPage() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Chunking</p>
-                        <p className="text-sm">
-                          {config.chunk_strategy} • {config.chunk_size} tokens
-                          {config.chunk_overlap && ` • ${config.chunk_overlap} overlap`}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Embedding</p>
-                        <p className="text-sm">{config.embedding_model}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Retrieval</p>
-                        <p className="text-sm">
-                          {config.retrieval_strategy} • Top {config.top_k}
-                        </p>
-                      </div>
-                      {config.chunk_count !== undefined && (
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Chunks</p>
-                          <p className="text-sm">{config.chunk_count} generated</p>
+                      <div className="space-y-2 text-xs">
+                        <div className="grid grid-cols-2 gap-1">
+                          <span className="text-muted-foreground">Strategy:</span>
+                          <span className="font-medium">{config.chunk_strategy}</span>
                         </div>
-                      )}
+                        <div className="grid grid-cols-2 gap-1">
+                          <span className="text-muted-foreground">Chunk Size:</span>
+                          <span className="font-medium">{config.chunk_size} tokens</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          <span className="text-muted-foreground">Overlap:</span>
+                          <span className="font-medium">{config.chunk_overlap || 0} tokens</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          <span className="text-muted-foreground">Embedding:</span>
+                          <span className="font-medium">{config.embedding_model}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          <span className="text-muted-foreground">Retrieval:</span>
+                          <span className="font-medium">{config.retrieval_strategy}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          <span className="text-muted-foreground">Top K:</span>
+                          <span className="font-medium">{config.top_k}</span>
+                        </div>
+                        {config.evaluation_settings?.use_llm_judge && (
+                          <>
+                            <div className="border-t pt-2 mt-2">
+                              <span className="text-xs font-semibold text-purple-600">Evaluation</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1">
+                              <span className="text-muted-foreground">LLM Judge:</span>
+                              <span className="font-medium">{config.evaluation_settings.llm_judge_model || 'gpt-3.5-turbo'}</span>
+                            </div>
+                          </>
+                        )}
+                        {config.chunk_count !== undefined && (
+                          <div className="grid grid-cols-2 gap-1 border-t pt-2 mt-2">
+                            <span className="text-muted-foreground">Chunks:</span>
+                            <span className="font-medium">{config.chunk_count} generated</span>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex gap-2 pt-2">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => navigate(`/projects/${projectId}/configs/${config.id}/experiment`)}
+                          className="flex-1"
+                          disabled={config.status !== 'ready'}
+                        >
+                          ⚡ Quick Test
+                        </Button>
                         <Button
                           variant="destructive"
                           size="sm"
@@ -174,7 +195,6 @@ export default function ConfigsPage() {
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
         />
-      </div>
     </div>
   )
 }

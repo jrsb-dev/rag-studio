@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { ExperimentCreate } from '@/types/api'
+import { useState, useMemo } from 'react'
+import type { ExperimentCreate, CostEstimateRequest } from '@/types/api'
 import { useConfigs } from '@/hooks/useConfigs'
 import { useQueries } from '@/hooks/useQueries'
 import { useCreateExperiment } from '@/hooks/useExperiments'
@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
+import CostEstimator from './CostEstimator'
 
 interface CreateExperimentModalProps {
   projectId: string
@@ -93,6 +94,34 @@ export default function CreateExperimentModal({
     }
     setSelectedQueries(newSet)
   }
+
+  // Calculate cost estimate based on selected configs and queries
+  const costEstimate = useMemo((): CostEstimateRequest | null => {
+    if (selectedConfigs.size === 0 || selectedQueries.size === 0 || !configs) {
+      return null
+    }
+
+    // Check if any selected config uses LLM judge
+    const selectedConfigsArray = Array.from(selectedConfigs)
+    const configsWithLLM = selectedConfigsArray
+      .map((id) => configs.find((c) => c.id === id))
+      .filter((c) => c?.evaluation_settings?.use_llm_judge)
+
+    if (configsWithLLM.length === 0) {
+      return null // No cost if no LLM judge
+    }
+
+    // Use the first LLM judge config for cost estimation
+    const firstLLMConfig = configsWithLLM[0]!
+    const avgTopK = configs.reduce((sum, c) => sum + c.top_k, 0) / configs.length
+
+    return {
+      num_queries: selectedQueries.size * configsWithLLM.length,
+      chunks_per_query: Math.round(avgTopK),
+      use_llm_judge: true,
+      llm_judge_model: firstLLMConfig.evaluation_settings?.llm_judge_model || 'gpt-3.5-turbo',
+    }
+  }, [selectedConfigs, selectedQueries, configs])
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -181,6 +210,9 @@ export default function CreateExperimentModal({
               {selectedQueries.size} query(ies) = {selectedConfigs.size * selectedQueries.size}{' '}
               total tests
             </div>
+
+            {/* Cost Estimate */}
+            {costEstimate && <CostEstimator request={costEstimate} />}
           </div>
 
           <DialogFooter>

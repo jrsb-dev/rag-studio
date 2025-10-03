@@ -10,7 +10,12 @@ from app.database import Base
 
 
 class Config(Base):
-    """Configuration model for RAG settings."""
+    """
+    Configuration model for RAG settings.
+
+    New field:
+    - evaluation_settings: JSONB for evaluation configuration (LLM judge, RAGAS, etc.)
+    """
 
     __tablename__ = "configs"
 
@@ -32,6 +37,10 @@ class Config(Base):
     )  # 'dense', 'hybrid', 'bm25'
     top_k: Mapped[int] = mapped_column(Integer, default=5)
     settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    # New evaluation settings
+    evaluation_settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships

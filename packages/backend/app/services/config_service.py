@@ -60,6 +60,9 @@ class ConfigService:
         # Get embedding dimensions for this model
         embedding_dim = get_model_dimensions(config.embedding_model)
 
+        # Check if we need embeddings (not needed for BM25-only)
+        needs_embeddings = config.retrieval_strategy in ("dense", "hybrid")
+
         # Process each document
         for document in documents:
             # Chunk document
@@ -70,25 +73,34 @@ class ConfigService:
                 chunk_overlap=config.chunk_overlap or 50,
             )
 
-            # Generate embeddings
-            embeddings = await embedding_service.embed_batch(
-                texts=chunks,
-                model=config.embedding_model,
-            )
+            # Generate embeddings only if needed
+            if needs_embeddings:
+                embeddings = await embedding_service.embed_batch(
+                    texts=chunks,
+                    model=config.embedding_model,
+                )
+            else:
+                # BM25-only: no embeddings needed
+                embeddings = [None] * len(chunks)
 
             # Create chunk records with metadata including dimensions
             for idx, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
+                chunk_meta = {
+                    "strategy": config.chunk_strategy,
+                }
+
+                # Only add embedding metadata if we have embeddings
+                if needs_embeddings:
+                    chunk_meta["embedding_model"] = config.embedding_model
+                    chunk_meta["embedding_dim"] = embedding_dim
+
                 chunk = Chunk(
                     document_id=document.id,
                     config_id=config.id,
                     content=chunk_text,
                     embedding=embedding,
                     chunk_index=idx,
-                    chunk_metadata={
-                        "strategy": config.chunk_strategy,
-                        "embedding_model": config.embedding_model,
-                        "embedding_dim": embedding_dim,
-                    },
+                    chunk_metadata=chunk_meta,
                 )
                 self.db.add(chunk)
 
@@ -147,11 +159,29 @@ class ConfigService:
         return config
 
     async def delete_config(self, config_id: UUID) -> bool:
-        """Delete configuration."""
+        """Delete configuration and all related data."""
+        from app.models.chunk import Chunk
+        from app.models.result import Result
+
         config = await self.get_config(config_id)
         if not config:
             return False
 
+        # Delete all results that reference this config
+        results_query = select(Result).where(Result.config_id == config_id)
+        results_result = await self.db.execute(results_query)
+        results = results_result.scalars().all()
+        for result in results:
+            await self.db.delete(result)
+
+        # Delete all chunks for this config
+        chunks_query = select(Chunk).where(Chunk.config_id == config_id)
+        chunks_result = await self.db.execute(chunks_query)
+        chunks = chunks_result.scalars().all()
+        for chunk in chunks:
+            await self.db.delete(chunk)
+
+        # Delete the config itself
         await self.db.delete(config)
         await self.db.commit()
         return True

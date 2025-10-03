@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ConfigCreate } from '@/types/api'
+import type { ConfigCreate, EvaluationSettings } from '@/types/api'
 import { useCreateConfig } from '@/hooks/useConfigs'
 import {
   Dialog,
@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import ConfigEvaluationSettings from './ConfigEvaluationSettings'
 
 interface CreateConfigModalProps {
   projectId: string
@@ -43,6 +44,10 @@ export default function CreateConfigModal({
     embedding_model: 'text-embedding-ada-002',
     retrieval_strategy: 'dense',
     top_k: 5,
+    evaluation_settings: {
+      use_llm_judge: false,
+      llm_judge_model: 'gpt-3.5-turbo',
+    },
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,6 +66,10 @@ export default function CreateConfigModal({
         embedding_model: 'text-embedding-ada-002',
         retrieval_strategy: 'dense',
         top_k: 5,
+        evaluation_settings: {
+          use_llm_judge: false,
+          llm_judge_model: 'gpt-3.5-turbo',
+        },
       })
       onClose()
     } catch (error) {
@@ -220,6 +229,14 @@ export default function CreateConfigModal({
                 required
               />
             </div>
+
+            {/* Evaluation Settings */}
+            <ConfigEvaluationSettings
+              settings={formData.evaluation_settings || {}}
+              onChange={(evaluation_settings) =>
+                setFormData({ ...formData, evaluation_settings })
+              }
+            />
           </div>
 
           <DialogFooter>

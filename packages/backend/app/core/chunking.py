@@ -1,7 +1,7 @@
 """Chunking service for document processing."""
 
 from typing import List
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter, CharacterTextSplitter
 
 
 class ChunkingService:
@@ -52,20 +52,45 @@ class ChunkingService:
         return ChunkingService.chunk_fixed(text, chunk_size, chunk_overlap)
 
     @staticmethod
-    def chunk_semantic(text: str) -> List[str]:
+    def chunk_semantic(
+        text: str,
+        chunk_size: int = 1024,
+        chunk_overlap: int = 100,
+    ) -> List[str]:
         """
-        Semantic chunking (future implementation).
+        Semantic chunking based on sentence boundaries with token-aware splitting.
+
+        Uses natural language boundaries (sentences, paragraphs) rather than
+        fixed character counts for more semantically coherent chunks. Uses
+        tiktoken for accurate token counting.
 
         Args:
             text: Text to chunk
+            chunk_size: Approximate size of each chunk in tokens
+            chunk_overlap: Overlap between chunks in tokens
 
         Returns:
             List of text chunks
-
-        Raises:
-            NotImplementedError: This feature is not yet implemented
         """
-        raise NotImplementedError("Semantic chunking not yet implemented")
+        # Use tiktoken-based splitting for accurate token counting
+        # Try paragraph boundaries first
+        splitter = CharacterTextSplitter.from_tiktoken_encoder(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            separator="\n\n",  # Prefer paragraph boundaries
+        )
+        chunks = splitter.split_text(text)
+
+        # If no paragraph splits worked, try sentence-level
+        if len(chunks) <= 1 and len(text) > chunk_size * 2:  # Rough char estimate
+            splitter = CharacterTextSplitter.from_tiktoken_encoder(
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+                separator=". ",  # Fall back to sentence boundaries
+            )
+            chunks = splitter.split_text(text)
+
+        return chunks
 
     @classmethod
     def chunk_text(
@@ -95,6 +120,6 @@ class ChunkingService:
         elif strategy == "recursive":
             return cls.chunk_recursive(text, chunk_size, chunk_overlap)
         elif strategy == "semantic":
-            return cls.chunk_semantic(text)
+            return cls.chunk_semantic(text, chunk_size, chunk_overlap)
         else:
             raise ValueError(f"Unknown chunking strategy: {strategy}")

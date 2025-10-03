@@ -41,6 +41,12 @@ export interface DocumentListResponse {
   documents: Document[]
 }
 
+export interface EvaluationSettings {
+  use_llm_judge?: boolean
+  llm_judge_model?: string
+  use_ragas?: boolean
+}
+
 export interface Config {
   id: string
   project_id: string
@@ -52,6 +58,7 @@ export interface Config {
   retrieval_strategy: 'dense' | 'hybrid' | 'bm25'
   top_k: number
   settings?: Record<string, any>
+  evaluation_settings?: EvaluationSettings
   created_at: string
   chunk_count?: number
   status?: 'pending' | 'processing' | 'ready' | 'failed'
@@ -66,6 +73,7 @@ export interface ConfigCreate {
   retrieval_strategy: string
   top_k?: number
   settings?: Record<string, any>
+  evaluation_settings?: EvaluationSettings
 }
 
 export interface ConfigUpdate {
@@ -79,6 +87,7 @@ export interface Query {
   project_id: string
   query_text: string
   ground_truth?: string
+  ground_truth_chunk_ids?: string[]
   metadata?: Record<string, any>
   created_at: string
 }
@@ -86,12 +95,14 @@ export interface Query {
 export interface QueryCreate {
   query_text: string
   ground_truth?: string
+  ground_truth_chunk_ids?: string[]
   metadata?: Record<string, any>
 }
 
 export interface QueryUpdate {
   query_text?: string
   ground_truth?: string
+  ground_truth_chunk_ids?: string[]
   metadata?: Record<string, any>
 }
 
@@ -126,6 +137,8 @@ export interface QueryResult {
   chunks: ChunkResult[]
   score?: number
   latency_ms?: number
+  metrics?: EvaluationMetrics
+  evaluation_cost_usd?: number
 }
 
 export interface ConfigResult {
@@ -134,6 +147,52 @@ export interface ConfigResult {
   avg_score?: number
   avg_latency_ms?: number
   results: QueryResult[]
+}
+
+export interface BasicMetrics {
+  mrr?: number
+  'ndcg@5'?: number
+  'precision@5'?: number
+  'recall@5'?: number
+  'f1@5'?: number
+  'hit_rate@5'?: number
+  diversity?: number
+  avg_chunk_length?: number
+}
+
+export interface LLMJudgeMetrics {
+  llm_avg_score?: number
+  llm_max_score?: number
+  llm_min_score?: number
+  'llm_score@1'?: number
+  llm_chunk_scores?: number[]
+  llm_chunk_evaluations?: Array<{
+    chunk_id: string
+    score: number
+    reasoning: string
+    key_points?: string[]
+  }>
+  llm_judge_model?: string
+  llm_eval_cost_usd?: number
+}
+
+export interface EvaluationMetrics {
+  basic?: BasicMetrics
+  llm_judge?: LLMJudgeMetrics
+}
+
+export interface CostEstimateRequest {
+  num_queries: number
+  chunks_per_query?: number
+  use_llm_judge?: boolean
+  llm_judge_model?: string
+  use_ragas?: boolean
+}
+
+export interface CostEstimateResponse {
+  estimated_cost_usd: number
+  breakdown: Record<string, number>
+  num_api_calls: number
 }
 
 export interface ExperimentResults {

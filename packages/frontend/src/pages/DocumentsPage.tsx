@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 
 export default function DocumentsPage() {
@@ -16,6 +20,8 @@ export default function DocumentsPage() {
   const deleteDocument = useDeleteDocument(projectId!)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
+  const [textContent, setTextContent] = useState('')
+  const [textFilename, setTextFilename] = useState('')
   const { toast } = useToast()
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,6 +91,38 @@ export default function DocumentsPage() {
     }
   }
 
+  const handleTextUpload = async () => {
+    if (!textContent.trim() || !textFilename.trim()) {
+      toast({
+        title: 'Missing information',
+        description: 'Please provide both filename and content',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      // Create a text file from the pasted content
+      const blob = new Blob([textContent], { type: 'text/plain' })
+      const filename = textFilename.endsWith('.txt') ? textFilename : `${textFilename}.txt`
+      const file = new File([blob], filename, { type: 'text/plain' })
+
+      await uploadDocuments.mutateAsync([file])
+      toast({
+        title: 'Document uploaded',
+        description: `${filename} was successfully uploaded`,
+      })
+      setTextContent('')
+      setTextFilename('')
+    } catch (error) {
+      toast({
+        title: 'Upload failed',
+        description: error instanceof Error ? error.message : 'Failed to upload text',
+        variant: 'destructive',
+      })
+    }
+  }
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -92,19 +130,11 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Button variant="link" asChild className="mb-2 pl-0">
-            <Link to={`/projects/${projectId}`}>
-              ← Back to Project
-            </Link>
-          </Button>
-          <h1 className="text-3xl font-bold">Documents</h1>
-          {project && (
-            <p className="text-muted-foreground mt-1">{project.name}</p>
-          )}
-        </div>
+    <div className="container mx-auto px-6 py-8">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">Documents</h1>
+        <p className="text-muted-foreground mt-1">Upload and manage your documents</p>
+      </div>
 
         {/* Upload Area */}
         <Card className="mb-8">
@@ -115,35 +145,74 @@ export default function DocumentsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                dragActive
-                  ? 'border-primary bg-primary/5'
-                  : 'border-muted-foreground/25 hover:border-primary/50'
-              }`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.txt,.md"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <p className="text-muted-foreground mb-4">
-                Drag and drop files here, or click to select
-              </p>
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadDocuments.isPending}
-              >
-                {uploadDocuments.isPending ? 'Uploading...' : 'Select Files'}
-              </Button>
-            </div>
+            <Tabs defaultValue="file" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="file">Upload Files</TabsTrigger>
+                <TabsTrigger value="text">Paste Text</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="file" className="mt-4">
+                <div
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    dragActive
+                      ? 'border-primary bg-primary/5'
+                      : 'border-muted-foreground/25 hover:border-primary/50'
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.txt,.md"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <p className="text-muted-foreground mb-4">
+                    Drag and drop files here, or click to select
+                  </p>
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadDocuments.isPending}
+                  >
+                    {uploadDocuments.isPending ? 'Uploading...' : 'Select Files'}
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="text" className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="filename">Document Name</Label>
+                  <Input
+                    id="filename"
+                    placeholder="e.g., My Document"
+                    value={textFilename}
+                    onChange={(e) => setTextFilename(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="content">Content</Label>
+                  <Textarea
+                    id="content"
+                    placeholder="Paste your text here..."
+                    value={textContent}
+                    onChange={(e) => setTextContent(e.target.value)}
+                    rows={12}
+                    className="font-mono text-sm"
+                  />
+                </div>
+                <Button
+                  onClick={handleTextUpload}
+                  disabled={uploadDocuments.isPending || !textContent.trim() || !textFilename.trim()}
+                  className="w-full"
+                >
+                  {uploadDocuments.isPending ? 'Uploading...' : 'Upload Text'}
+                </Button>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
@@ -214,7 +283,6 @@ export default function DocumentsPage() {
             </CardContent>
           </Card>
         )}
-      </div>
     </div>
   )
 }

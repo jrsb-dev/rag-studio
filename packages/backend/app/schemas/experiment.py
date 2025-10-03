@@ -50,6 +50,8 @@ class QueryResult(BaseModel):
     chunks: list[ChunkResult]
     score: float | None = None
     latency_ms: int | None = None
+    metrics: dict | None = None
+    evaluation_cost_usd: float | None = None
 
 
 class ConfigResult(BaseModel):
@@ -67,3 +69,21 @@ class ExperimentResultsResponse(BaseModel):
 
     experiment_id: UUID
     configs: list[ConfigResult]
+
+
+class CostEstimateRequest(BaseModel):
+    """Request schema for cost estimation."""
+
+    num_queries: int = Field(..., ge=1, description="Number of queries")
+    chunks_per_query: int = Field(5, ge=1, le=20, description="Chunks per query (top_k)")
+    use_llm_judge: bool = Field(False, description="Use LLM judge evaluation")
+    llm_judge_model: str = Field("gpt-3.5-turbo", description="LLM judge model")
+    use_ragas: bool = Field(False, description="Use RAGAS evaluation")
+
+
+class CostEstimateResponse(BaseModel):
+    """Response schema for cost estimation."""
+
+    estimated_cost_usd: float = Field(..., description="Estimated cost in USD")
+    breakdown: dict[str, float] = Field(..., description="Cost breakdown by method")
+    num_api_calls: int = Field(..., description="Total number of API calls")

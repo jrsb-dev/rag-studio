@@ -86,17 +86,17 @@ export default function CreateQueryModal({
 
             <div className="grid gap-2">
               <Label htmlFor="ground_truth">
-                Expected Answer (Optional)
+                Expected Answer (for IR metrics)
               </Label>
               <Textarea
                 id="ground_truth"
                 value={formData.ground_truth}
                 onChange={(e) => setFormData({ ...formData, ground_truth: e.target.value })}
-                rows={3}
-                placeholder="The expected answer for evaluation purposes..."
+                rows={4}
+                placeholder="Provide the expected answer text. This enables MRR, NDCG, Precision, Recall, and F1 metrics by comparing retrieved chunks semantically."
               />
               <p className="text-sm text-muted-foreground">
-                Provide the expected answer to evaluate retrieval quality
+                <strong>Recommended:</strong> Add expected answer to enable all IR metrics. The system will automatically match retrieved chunks using semantic similarity.
               </p>
             </div>
           </div>

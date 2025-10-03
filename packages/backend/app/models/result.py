@@ -1,7 +1,8 @@
 """Result model."""
 
 from datetime import datetime
-from sqlalchemy import Integer, Float, ForeignKey, DateTime, ARRAY
+from decimal import Decimal
+from sqlalchemy import Integer, Float, ForeignKey, DateTime, ARRAY, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
@@ -10,7 +11,14 @@ from app.database import Base
 
 
 class Result(Base):
-    """Result model for storing experiment results."""
+    """
+    Result model for storing experiment results.
+
+    New fields for evaluation metrics:
+    - metrics: JSONB storing all evaluation metrics (basic IR, LLM judge, RAGAS)
+    - evaluation_cost_usd: Cost of evaluation (LLM API calls)
+    - evaluated_at: Timestamp of evaluation
+    """
 
     __tablename__ = "results"
 
@@ -30,6 +38,12 @@ class Result(Base):
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     result_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    # New evaluation fields
+    metrics: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    evaluation_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 4), nullable=True)
+    evaluated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships

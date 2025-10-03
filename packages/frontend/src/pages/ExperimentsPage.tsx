@@ -22,29 +22,21 @@ export default function ExperimentsPage() {
   const hasRequirements = configs && configs.length > 0 && queries && queries.length > 0
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Button variant="link" asChild className="mb-2 pl-0">
-            <Link to={`/projects/${projectId}`}>
-              ← Back to Project
-            </Link>
-          </Button>
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold">Experiments</h1>
-              {project && (
-                <p className="text-muted-foreground mt-1">{project.name}</p>
-              )}
-            </div>
-            <Button
-              onClick={() => setIsCreateModalOpen(true)}
-              disabled={!hasRequirements}
-            >
-              Run Experiment
-            </Button>
+    <div className="container mx-auto px-6 py-8">
+      <div className="mb-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold">Experiments</h1>
+            <p className="text-muted-foreground mt-1">Compare RAG configurations</p>
           </div>
+          <Button
+            onClick={() => setIsCreateModalOpen(true)}
+            disabled={!hasRequirements}
+          >
+            Run Experiment
+          </Button>
         </div>
+      </div>
 
         {!hasRequirements && (
           <Alert>
@@ -106,10 +98,9 @@ export default function ExperimentsPage() {
           onClose={() => setIsCreateModalOpen(false)}
           onSuccess={(experimentId) => {
             setIsCreateModalOpen(false)
-            navigate(`/experiments/${experimentId}/results`)
+            navigate(`/projects/${projectId}/experiments/${experimentId}`)
           }}
         />
-      </div>
     </div>
   )
 }

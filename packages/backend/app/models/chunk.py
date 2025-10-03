@@ -3,7 +3,7 @@
 from datetime import datetime
 from sqlalchemy import String, Text, Integer, ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID, JSONB, TSVECTOR
 from pgvector.sqlalchemy import Vector
 import uuid
 
@@ -17,6 +17,9 @@ class Chunk(Base):
     The embedding column uses dynamic vector dimensions to support
     multiple embedding models (1536, 3072, etc.). The actual dimension
     is stored in chunk_metadata['embedding_dim'] for validation.
+
+    The content_tsv column is automatically maintained by a database trigger
+    for full-text search (BM25) support.
     """
 
     __tablename__ = "chunks"
@@ -30,6 +33,7 @@ class Chunk(Base):
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(), nullable=True)
+    content_tsv: Mapped[str | None] = mapped_column(TSVECTOR, nullable=True)
     chunk_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

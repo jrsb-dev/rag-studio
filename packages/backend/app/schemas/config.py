@@ -16,6 +16,7 @@ class ConfigBase(BaseModel):
     retrieval_strategy: str = Field(..., description="Retrieval strategy: 'dense', 'hybrid', 'bm25'")
     top_k: int = Field(5, ge=1, le=20, description="Number of chunks to retrieve")
     settings: dict | None = Field(None, description="Additional settings")
+    evaluation_settings: dict | None = Field(None, description="Evaluation settings (LLM judge, RAGAS, etc.)")
 
 
 class ConfigCreate(ConfigBase):

@@ -35,26 +35,18 @@ export default function QueriesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Button variant="link" asChild className="mb-2 pl-0">
-            <Link to={`/projects/${projectId}`}>
-              ← Back to Project
-            </Link>
-          </Button>
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold">Test Queries</h1>
-              {project && (
-                <p className="text-muted-foreground mt-1">{project.name}</p>
-              )}
-            </div>
-            <Button onClick={() => setIsCreateModalOpen(true)}>
-              Create Query
-            </Button>
+    <div className="container mx-auto px-6 py-8">
+      <div className="mb-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold">Test Queries</h1>
+            <p className="text-muted-foreground mt-1">Create test queries with expected answers</p>
           </div>
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            Create Query
+          </Button>
         </div>
+      </div>
 
         {isLoading && (
           <div className="text-center py-12">
@@ -116,12 +108,11 @@ export default function QueriesPage() {
           </div>
         )}
 
-        <CreateQueryModal
-          projectId={projectId!}
-          isOpen={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
-        />
-      </div>
+      <CreateQueryModal
+        projectId={projectId!}
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
     </div>
   )
 }

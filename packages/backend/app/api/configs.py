@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.schemas.config import ConfigCreate, ConfigUpdate, ConfigResponse
 from app.services.config_service import ConfigService
+from app.models.chunk import Chunk
+from sqlalchemy import select
 
 router = APIRouter(prefix="/projects/{project_id}/configs", tags=["configs"])
 
@@ -88,3 +90,34 @@ async def delete_config(
         )
 
     await service.delete_config(config_id)
+
+
+@router.get("/{config_id}/chunks", response_model=list[dict])
+async def get_config_chunks(
+    project_id: UUID,
+    config_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get chunks for a configuration."""
+    service = ConfigService(db)
+    config = await service.get_config(config_id)
+
+    if not config or config.project_id != project_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Config {config_id} not found",
+        )
+
+    # Get chunks for this config
+    chunks_query = select(Chunk).where(Chunk.config_id == config_id).limit(100)
+    chunks_result = await db.execute(chunks_query)
+    chunks = chunks_result.scalars().all()
+
+    return [
+        {
+            "id": str(chunk.id),
+            "content": chunk.content[:200] + "..." if len(chunk.content) > 200 else chunk.content,
+            "document_id": str(chunk.document_id),
+        }
+        for chunk in chunks
+    ]
