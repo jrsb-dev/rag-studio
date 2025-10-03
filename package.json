@@ -1,0 +1,26 @@
+{
+  "name": "rag-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source testing platform to discover what RAG approach works best for YOUR corpus",
+  "author": "Jeroen Breemhaar",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend": "cd packages/backend && poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "type-check": "turbo run type-check"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.6.3"
+  }
+}
