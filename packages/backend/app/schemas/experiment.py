@@ -53,6 +53,10 @@ class QueryResult(BaseModel):
     latency_ms: int | None = None
     metrics: dict | None = None
     evaluation_cost_usd: float | None = None
+    # Answer generation fields
+    generated_answer: str | None = None
+    generation_cost_usd: float | None = None
+    answer_metrics: dict | None = None
 
 
 class ConfigResult(BaseModel):

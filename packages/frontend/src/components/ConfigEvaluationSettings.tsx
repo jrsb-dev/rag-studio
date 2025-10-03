@@ -13,15 +13,22 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { CheckCircle2, ChevronDown, Info } from 'lucide-react'
-import type { EvaluationSettings } from '@/types/api'
+import { CheckCircle2, ChevronDown, Info, Sparkles } from 'lucide-react'
+import type { EvaluationSettings, GenerationSettings } from '@/types/api'
 
 interface Props {
   settings: EvaluationSettings
   onChange: (settings: EvaluationSettings) => void
+  generationSettings: GenerationSettings
+  onGenerationChange: (settings: GenerationSettings) => void
 }
 
-export default function ConfigEvaluationSettings({ settings, onChange }: Props) {
+export default function ConfigEvaluationSettings({
+  settings,
+  onChange,
+  generationSettings,
+  onGenerationChange
+}: Props) {
   return (
     <Collapsible className="space-y-4">
       <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:underline">
@@ -87,6 +94,70 @@ export default function ConfigEvaluationSettings({ settings, onChange }: Props) 
               <p className="text-xs text-muted-foreground mt-2">
                 Uses GPT to rate chunk relevance on 1-5 scale. Works without ground truth.
               </p>
+            </div>
+          )}
+        </div>
+
+        {/* Answer Generation - NEW */}
+        <div className="space-y-3 border border-purple-200 dark:border-purple-800 rounded-lg p-4 bg-purple-50/30 dark:bg-purple-950/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-purple-600" />
+              <Label htmlFor="generate-answers">Generate Answers</Label>
+              <span className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full font-medium">
+                NEW
+              </span>
+            </div>
+            <Switch
+              id="generate-answers"
+              checked={generationSettings.enabled || false}
+              onCheckedChange={(checked) =>
+                onGenerationChange({ ...generationSettings, enabled: checked })
+              }
+            />
+          </div>
+
+          {generationSettings.enabled && (
+            <div className="space-y-3 ml-6">
+              <div className="space-y-2">
+                <Label htmlFor="gen-model" className="text-sm">
+                  Model
+                </Label>
+                <Select
+                  value={generationSettings.model || 'gpt-4o-mini'}
+                  onValueChange={(value) =>
+                    onGenerationChange({ ...generationSettings, model: value })
+                  }
+                >
+                  <SelectTrigger id="gen-model">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gpt-4o-mini">
+                      GPT-4o Mini (Recommended) - ~$0.002/answer
+                    </SelectItem>
+                    <SelectItem value="gpt-4o">
+                      GPT-4o (Best quality) - ~$0.015/answer
+                    </SelectItem>
+                    <SelectItem value="gpt-3.5-turbo">
+                      GPT-3.5 Turbo (Fastest) - ~$0.001/answer
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Alert className="bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800">
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <p className="font-medium mb-1">What this does:</p>
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                    <li>Generates full answers from retrieved chunks</li>
+                    <li>Detects hallucinations automatically</li>
+                    <li>Evaluates answer quality (faithfulness, relevance, etc.)</li>
+                    <li>Compare answers side-by-side in experiment results</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
             </div>
           )}
         </div>

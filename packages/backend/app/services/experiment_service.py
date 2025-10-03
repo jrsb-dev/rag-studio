@@ -17,6 +17,8 @@ from app.schemas.document_context import DocumentContextResponse, RetrievedChunk
 from app.core.embedding import EmbeddingService
 from app.core.retrieval import RetrievalService
 from app.core.evaluation.evaluator import EvaluationService
+from app.core.generation import AnswerGenerationService
+from app.core.evaluation.answer_evaluator import AnswerQualityEvaluator
 
 
 class ExperimentService:
@@ -71,6 +73,8 @@ class ExperimentService:
         embedding_service = EmbeddingService(api_key=api_key)
         retrieval_service = RetrievalService(self.db)
         evaluation_service = EvaluationService(openai_api_key=api_key)
+        generation_service = AnswerGenerationService(api_key=api_key)
+        answer_evaluator = AnswerQualityEvaluator(api_key=api_key)
 
         # Get all queries
         queries_query = select(Query).where(Query.id.in_(experiment.query_ids))
@@ -156,6 +160,45 @@ class ExperimentService:
                     evaluation_result["metrics"]
                 )
 
+                # PHASE 2: Answer Generation (if enabled in config)
+                generated_answer = None
+                generation_cost = 0.0
+                answer_metrics = None
+
+                generation_settings = config.generation_settings or {}
+                if generation_settings.get("enabled", False):
+                    # Generate answer from chunks
+                    generation_result = await generation_service.generate_answer(
+                        query_text=query.query_text,
+                        chunks=chunks,
+                        model=generation_settings.get("model", "gpt-4o-mini"),
+                        temperature=generation_settings.get("temperature", 0.0),
+                        max_tokens=generation_settings.get("max_tokens", 500),
+                        prompt_template=config.prompt_template,
+                    )
+
+                    generated_answer = generation_result.get("answer")
+                    generation_cost = generation_result.get("cost_usd", 0.0)
+
+                    # PHASE 3: Answer Quality Evaluation (if answer was generated)
+                    if generated_answer and not generation_result.get("error"):
+                        answer_eval = await answer_evaluator.evaluate(
+                            query_text=query.query_text,
+                            generated_answer=generated_answer,
+                            chunks=chunks,
+                        )
+
+                        # Combine generation metadata with evaluation
+                        answer_metrics = {
+                            **answer_eval,
+                            "generation_model": generation_result.get("model"),
+                            "temperature": generation_result.get("temperature"),
+                            "prompt_tokens": generation_result.get("prompt_tokens"),
+                            "completion_tokens": generation_result.get("completion_tokens"),
+                            "prompt_sent": generation_result.get("prompt_sent"),  # Full prompt
+                        }
+                        generation_cost += answer_eval.get("evaluation_cost_usd", 0.0)
+
                 # Create result with new metrics
                 result = Result(
                     experiment_id=experiment.id,
@@ -164,9 +207,14 @@ class ExperimentService:
                     retrieved_chunk_ids=[chunk.id for chunk in chunks],
                     score=primary_score,  # Primary score for ranking
                     latency_ms=latency_ms,
-                    metrics=evaluation_result["metrics"],  # NEW: Full metrics
-                    evaluation_cost_usd=evaluation_result["total_cost_usd"],  # NEW: Cost
-                    evaluated_at=datetime.utcnow(),  # NEW: Timestamp
+                    metrics=evaluation_result["metrics"],  # Retrieval metrics
+                    evaluation_cost_usd=evaluation_result["total_cost_usd"],
+                    evaluated_at=datetime.utcnow(),
+                    # Answer generation fields
+                    generated_answer=generated_answer,
+                    generation_cost_usd=generation_cost if generated_answer else None,
+                    answer_metrics=answer_metrics,
+                    generated_at=datetime.utcnow() if generated_answer else None,
                     result_metadata={
                         "num_chunks": len(chunks),
                         "config_name": config.name,
@@ -278,6 +326,10 @@ class ExperimentService:
                         "latency_ms": result.latency_ms,
                         "metrics": result.metrics,
                         "evaluation_cost_usd": float(result.evaluation_cost_usd) if result.evaluation_cost_usd else None,
+                        # Answer generation data
+                        "generated_answer": result.generated_answer,
+                        "generation_cost_usd": float(result.generation_cost_usd) if result.generation_cost_usd else None,
+                        "answer_metrics": result.answer_metrics,
                     }
                 )
 

@@ -17,6 +17,8 @@ class ConfigBase(BaseModel):
     top_k: int = Field(5, ge=1, le=20, description="Number of chunks to retrieve")
     settings: dict | None = Field(None, description="Additional settings")
     evaluation_settings: dict | None = Field(None, description="Evaluation settings (LLM judge, RAGAS, etc.)")
+    generation_settings: dict | None = Field(None, description="Answer generation settings (enabled, model, temperature, max_tokens)")
+    prompt_template: str | None = Field(None, description="Custom prompt template for answer generation")
 
 
 class ConfigCreate(ConfigBase):

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ConfigCreate, EvaluationSettings } from '@/types/api'
+import type { ConfigCreate, EvaluationSettings, GenerationSettings } from '@/types/api'
 import { useCreateConfig } from '@/hooks/useConfigs'
 import {
   Dialog,
@@ -48,6 +48,12 @@ export default function CreateConfigModal({
       use_llm_judge: false,
       llm_judge_model: 'gpt-3.5-turbo',
     },
+    generation_settings: {
+      enabled: false,
+      model: 'gpt-4o-mini',
+      temperature: 0.0,
+      max_tokens: 500,
+    },
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,6 +75,12 @@ export default function CreateConfigModal({
         evaluation_settings: {
           use_llm_judge: false,
           llm_judge_model: 'gpt-3.5-turbo',
+        },
+        generation_settings: {
+          enabled: false,
+          model: 'gpt-4o-mini',
+          temperature: 0.0,
+          max_tokens: 500,
         },
       })
       onClose()
@@ -235,6 +247,10 @@ export default function CreateConfigModal({
               settings={formData.evaluation_settings || {}}
               onChange={(evaluation_settings) =>
                 setFormData({ ...formData, evaluation_settings })
+              }
+              generationSettings={formData.generation_settings || {}}
+              onGenerationChange={(generation_settings) =>
+                setFormData({ ...formData, generation_settings })
               }
             />
           </div>

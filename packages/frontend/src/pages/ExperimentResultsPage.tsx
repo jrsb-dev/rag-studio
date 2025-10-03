@@ -19,8 +19,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { ChevronDown, Settings, FileText } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ChevronDown, Settings, FileText, BarChart3, MessageSquare } from 'lucide-react'
 import MetricsDisplay from '@/components/MetricsDisplay'
+import AnswerComparisonView from '@/components/AnswerComparisonView'
 
 export default function ExperimentResultsPage() {
   const { experimentId, projectId } = useParams<{ experimentId: string; projectId: string }>()
@@ -111,10 +113,16 @@ export default function ExperimentResultsPage() {
           </Alert>
         )}
 
-        {/* Summary Cards */}
-        {sortedConfigs && sortedConfigs.length > 0 && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Check if any configs have answers */}
+        {sortedConfigs && sortedConfigs.length > 0 && (() => {
+          const hasAnyAnswers = sortedConfigs.some(config =>
+            config.results.some(result => result.generated_answer)
+          )
+
+          return (
+            <>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <Card>
                 <CardHeader>
                   <CardTitle>Configurations Tested</CardTitle>
@@ -153,11 +161,25 @@ export default function ExperimentResultsPage() {
                   </p>
                 </CardContent>
               </Card>
-            </div>
+              </div>
 
-            {/* Results by Configuration */}
-            <div className="space-y-6">
-              {sortedConfigs.map((config, index) => {
+              {/* Tabs for different views */}
+              <Tabs defaultValue="metrics" className="w-full">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="metrics" className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Metrics Overview
+                  </TabsTrigger>
+                  <TabsTrigger value="answers" className="flex items-center gap-2" disabled={!hasAnyAnswers}>
+                    <MessageSquare className="h-4 w-4" />
+                    Answer Comparison
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Metrics Overview Tab */}
+                <TabsContent value="metrics" className="mt-6">
+                  <div className="space-y-6">
+                    {sortedConfigs.map((config, index) => {
                 const configDetails = configs?.find(c => c.id === config.config_id)
                 return (
                   <Card key={config.config_id}>
@@ -253,10 +275,18 @@ export default function ExperimentResultsPage() {
                   </CardContent>
                 </Card>
                 )
-              })}
-            </div>
-          </>
-        )}
+                    })}
+                  </div>
+                </TabsContent>
+
+                {/* Answer Comparison Tab */}
+                <TabsContent value="answers" className="mt-6">
+                  <AnswerComparisonView configs={sortedConfigs} />
+                </TabsContent>
+              </Tabs>
+            </>
+          )
+        })()}
 
         {(!sortedConfigs || sortedConfigs.length === 0) && experiment.status !== 'running' && (
           <Card className="text-center p-12">

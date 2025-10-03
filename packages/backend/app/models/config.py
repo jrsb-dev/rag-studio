@@ -1,7 +1,7 @@
 """Config model."""
 
 from datetime import datetime
-from sqlalchemy import String, Integer, ForeignKey, DateTime
+from sqlalchemy import String, Integer, ForeignKey, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
@@ -40,6 +40,13 @@ class Config(Base):
 
     # New evaluation settings
     evaluation_settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    # Answer generation settings
+    generation_settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Contains: { "enabled": bool, "model": str, "temperature": float, "max_tokens": int }
+
+    prompt_template: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Template for answer generation with variables: {context}, {question}, {top_k}
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

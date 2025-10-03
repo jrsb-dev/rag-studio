@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import Integer, Float, ForeignKey, DateTime, ARRAY, Numeric
+from sqlalchemy import Integer, Float, ForeignKey, DateTime, ARRAY, Numeric, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
@@ -43,6 +43,12 @@ class Result(Base):
     metrics: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     evaluation_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 4), nullable=True)
     evaluated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Answer generation fields
+    generated_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    generation_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 4), nullable=True)
+    answer_metrics: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

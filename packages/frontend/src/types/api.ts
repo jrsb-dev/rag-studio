@@ -47,6 +47,13 @@ export interface EvaluationSettings {
   use_ragas?: boolean
 }
 
+export interface GenerationSettings {
+  enabled?: boolean
+  model?: string
+  temperature?: number
+  max_tokens?: number
+}
+
 export interface Config {
   id: string
   project_id: string
@@ -59,6 +66,8 @@ export interface Config {
   top_k: number
   settings?: Record<string, any>
   evaluation_settings?: EvaluationSettings
+  generation_settings?: GenerationSettings
+  prompt_template?: string
   created_at: string
   chunk_count?: number
   status?: 'pending' | 'processing' | 'ready' | 'failed'
@@ -74,6 +83,8 @@ export interface ConfigCreate {
   top_k?: number
   settings?: Record<string, any>
   evaluation_settings?: EvaluationSettings
+  generation_settings?: GenerationSettings
+  prompt_template?: string
 }
 
 export interface ConfigUpdate {
@@ -131,7 +142,43 @@ export interface ChunkResult {
   score?: number
 }
 
+export interface Hallucination {
+  text: string
+  reason: string
+}
+
+export interface SupportedClaim {
+  claim: string
+  source: string
+}
+
+export interface AnswerMetrics {
+  faithfulness?: number
+  answer_relevance?: number
+  completeness?: number
+  conciseness?: number
+  overall_quality?: number
+  hallucinations?: Hallucination[]
+  hallucination_count?: number
+  has_hallucinations?: boolean
+  supported_claims?: SupportedClaim[]
+  unsupported_claims?: string[]
+  reasoning?: string
+  strengths?: string[]
+  weaknesses?: string[]
+  evaluation_model?: string
+  evaluation_cost_usd?: number
+  tokens_used?: number
+  // Generation metadata
+  generation_model?: string
+  temperature?: number
+  prompt_tokens?: number
+  completion_tokens?: number
+  prompt_sent?: string  // Full prompt sent to LLM
+}
+
 export interface QueryResult {
+  result_id?: string
   query_id: string
   query_text: string
   chunks: ChunkResult[]
@@ -139,6 +186,10 @@ export interface QueryResult {
   latency_ms?: number
   metrics?: EvaluationMetrics
   evaluation_cost_usd?: number
+  // Answer generation fields
+  generated_answer?: string
+  generation_cost_usd?: number
+  answer_metrics?: AnswerMetrics
 }
 
 export interface ConfigResult {
