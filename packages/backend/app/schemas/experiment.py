@@ -45,6 +45,7 @@ class ChunkResult(BaseModel):
 class QueryResult(BaseModel):
     """Schema for query result in experiment."""
 
+    result_id: UUID
     query_id: UUID
     query_text: str
     chunks: list[ChunkResult]

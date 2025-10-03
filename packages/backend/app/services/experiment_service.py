@@ -235,7 +235,6 @@ class ExperimentService:
                 continue
 
             config_data = {
-                "sanity": [],
                 "config_id": str(config_id),
                 "config_name": config.name,
                 "results": [],
@@ -271,8 +270,7 @@ class ExperimentService:
 
                 config_data["results"].append(
                     {
-                        "ding": "dong",
-                        "result_id": str(result.id),  # Add result ID for context view
+                        "result_id": str(result.id),
                         "query_id": str(result.query_id),
                         "query_text": query.query_text,
                         "chunks": result_chunks,
@@ -300,7 +298,6 @@ class ExperimentService:
 
         return {
             "experiment_id": str(experiment.id),
-            "hallo":"Hallo",
             "configs": list(config_results.values()),
         }
 
