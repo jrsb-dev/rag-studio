@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:frontend": "pnpm --filter frontend dev",
-    "dev:backend": "cd packages/backend && poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
+    "dev:backend": "cd packages/backend && PYTHONDONTWRITEBYTECODE=1 poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "clean": "turbo run clean",

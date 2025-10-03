@@ -16,6 +16,7 @@ from app.schemas.query_time import (
     QueryTimeExperimentRequest,
     QueryTimeExperimentResponse,
 )
+from app.schemas.document_context import DocumentContextResponse
 from app.services.experiment_service import ExperimentService
 from app.core.evaluation.llm_evaluator import LLMJudgeEvaluator
 
@@ -145,4 +146,33 @@ async def run_query_time_experiment(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to run query-time experiment: {str(e)}"
+        )
+
+
+@router.get("/results/{result_id}/document-context", response_model=DocumentContextResponse)
+async def get_document_context_for_result(
+    result_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get document with retrieved chunks highlighted in context.
+
+    Shows the full document text with retrieved chunks marked by rank,
+    allowing users to see what context surrounds the retrieved chunks
+    and understand why certain chunks were/weren't retrieved.
+    """
+    service = ExperimentService(db)
+
+    try:
+        context = await service.get_document_context_for_result(result_id)
+        return context
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get document context: {str(e)}",
         )

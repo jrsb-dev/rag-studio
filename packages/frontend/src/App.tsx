@@ -11,6 +11,8 @@ import ExperimentsPage from './pages/ExperimentsPage'
 import ExperimentsListPage from './pages/ExperimentsListPage'
 import ExperimentResultsPage from './pages/ExperimentResultsPage'
 import QueryTimeExperimenterPage from './pages/QueryTimeExperimenterPage'
+import ChunkVisualizerPage from './pages/ChunkVisualizerPage'
+import DocumentContextPage from './pages/DocumentContextPage'
 import SettingsPage from './pages/SettingsPage'
 import { Toaster } from './components/ui/toaster'
 
@@ -28,10 +30,12 @@ function App() {
         <Route path="/projects/:projectId/documents" element={<Layout><ProjectLayout><DocumentsPage /></ProjectLayout></Layout>} />
         <Route path="/projects/:projectId/configs" element={<Layout><ProjectLayout><ConfigsPage /></ProjectLayout></Layout>} />
         <Route path="/projects/:projectId/configs/:configId/experiment" element={<Layout><ProjectLayout><QueryTimeExperimenterPage /></ProjectLayout></Layout>} />
+        <Route path="/projects/:projectId/configs/:configId/documents/:documentId/visualize" element={<Layout><ProjectLayout><ChunkVisualizerPage /></ProjectLayout></Layout>} />
         <Route path="/projects/:projectId/queries" element={<Layout><ProjectLayout><QueriesPage /></ProjectLayout></Layout>} />
         <Route path="/projects/:projectId/experiments" element={<Layout><ProjectLayout><ExperimentsPage /></ProjectLayout></Layout>} />
         <Route path="/projects/:projectId/experiments/list" element={<Layout><ProjectLayout><ExperimentsListPage /></ProjectLayout></Layout>} />
         <Route path="/projects/:projectId/experiments/:experimentId" element={<Layout><ProjectLayout><ExperimentResultsPage /></ProjectLayout></Layout>} />
+        <Route path="/projects/:projectId/experiments/:experimentId/results/:resultId/context" element={<Layout><ProjectLayout><DocumentContextPage /></ProjectLayout></Layout>} />
       </Routes>
       <Toaster />
     </BrowserRouter>

@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useExperiment, useExperimentResults } from '@/hooks/useExperiments'
 import { useConfigs } from '@/hooks/useConfigs'
@@ -19,11 +19,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { ChevronDown, Settings } from 'lucide-react'
+import { ChevronDown, Settings, FileText } from 'lucide-react'
 import MetricsDisplay from '@/components/MetricsDisplay'
 
 export default function ExperimentResultsPage() {
   const { experimentId, projectId } = useParams<{ experimentId: string; projectId: string }>()
+  const navigate = useNavigate()
   const { data: experiment, isLoading: experimentLoading } = useExperiment(experimentId)
   const { data: results, isLoading: resultsLoading } = useExperimentResults(experimentId)
   const { data: configs } = useConfigs(projectId)
@@ -240,7 +241,12 @@ export default function ExperimentResultsPage() {
                       </TableHeader>
                       <TableBody>
                         {config.results.map((result) => (
-                          <QueryResultRow key={result.query_id} result={result} />
+                          <QueryResultRow
+                            key={result.query_id}
+                            result={result}
+                            projectId={projectId!}
+                            experimentId={experimentId!}
+                          />
                         ))}
                       </TableBody>
                     </Table>
@@ -267,9 +273,13 @@ export default function ExperimentResultsPage() {
   )
 }
 
-function QueryResultRow({ result }: { result: any }) {
+function QueryResultRow({ result, projectId, experimentId }: { result: any; projectId: string; experimentId: string }) {
   const [isOpen, setIsOpen] = useState(false)
+  const navigate = useNavigate()
   const hasMetrics = result.metrics && (result.metrics.basic || result.metrics.llm_judge)
+
+  // Debug: log result to see if result_id exists
+  console.log('Result data:', { result_id: result.result_id, query_text: result.query_text })
 
   return (
     <>
@@ -285,19 +295,32 @@ function QueryResultRow({ result }: { result: any }) {
         <TableCell>
           {result.evaluation_cost_usd ? `$${result.evaluation_cost_usd.toFixed(4)}` : '-'}
         </TableCell>
+				
         <TableCell>
-          {hasMetrics && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsOpen(!isOpen)}
-            >
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-              />
-              Metrics
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {result.result_id && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/projects/${projectId}/experiments/${experimentId}/results/${result.result_id}/context`)}
+              >
+                <FileText className="h-3 w-3 mr-1" />
+                Context
+              </Button>
+            )}
+            {hasMetrics && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsOpen(!isOpen)}
+              >
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                />
+                Metrics
+              </Button>
+            )}
+          </div>
         </TableCell>
       </TableRow>
       {isOpen && hasMetrics && (

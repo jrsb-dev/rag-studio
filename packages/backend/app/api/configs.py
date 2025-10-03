@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.schemas.config import ConfigCreate, ConfigUpdate, ConfigResponse
+from app.schemas.chunk_visualization import ChunkVisualizationResponse
+from app.schemas.similarity import SimilarityMatrixResponse
 from app.services.config_service import ConfigService
 from app.models.chunk import Chunk
 from sqlalchemy import select
@@ -121,3 +123,87 @@ async def get_config_chunks(
         }
         for chunk in chunks
     ]
+
+
+@router.get("/{config_id}/documents/{document_id}/chunks/visualization", response_model=ChunkVisualizationResponse)
+async def get_chunk_visualization(
+    project_id: UUID,
+    config_id: UUID,
+    document_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get chunk visualization for a specific document and config.
+
+    Returns:
+        Complete visualization data including:
+        - Document text with chunk boundaries
+        - Overlap regions between chunks
+        - Statistics about chunking
+    """
+    service = ConfigService(db)
+
+    # Verify config belongs to project
+    config = await service.get_config(config_id)
+    if not config or config.project_id != project_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Config {config_id} not found in project {project_id}",
+        )
+
+    # Build visualization
+    try:
+        visualization = await service.build_chunk_visualization(config_id, document_id)
+        return visualization
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to build chunk visualization: {str(e)}",
+        )
+
+
+@router.get("/{config_id}/documents/{document_id}/chunks/similarity-matrix", response_model=SimilarityMatrixResponse)
+async def get_chunk_similarity_matrix(
+    project_id: UUID,
+    config_id: UUID,
+    document_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get similarity matrix for chunks in a document.
+
+    Calculates cosine similarity between all pairs of chunks
+    using their embeddings. Returns:
+    - NxN similarity matrix
+    - Statistics (avg, min, max)
+    - Semantic discontinuities (adjacent chunks with low similarity)
+    """
+    service = ConfigService(db)
+
+    # Verify config belongs to project
+    config = await service.get_config(config_id)
+    if not config or config.project_id != project_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Config {config_id} not found in project {project_id}",
+        )
+
+    # Build similarity matrix
+    try:
+        matrix = await service.build_similarity_matrix(config_id, document_id)
+        return matrix
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to build similarity matrix: {str(e)}",
+        )

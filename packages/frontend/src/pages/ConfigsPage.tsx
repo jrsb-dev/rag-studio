@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useProject } from '@/hooks/useProjects'
 import { useConfigs, useDeleteConfig } from '@/hooks/useConfigs'
@@ -10,13 +10,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import CreateConfigModal from '@/components/CreateConfigModal'
 import ConfigPresetsView from '@/components/ConfigPresetsView'
+import VisualizeChunksModal from '@/components/VisualizeChunksModal'
 
 export default function ConfigsPage() {
   const { projectId } = useParams<{ projectId: string }>()
+  const navigate = useNavigate()
   const { data: project } = useProject(projectId)
   const { data: configs, isLoading, error } = useConfigs(projectId)
   const deleteConfig = useDeleteConfig(projectId!)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [visualizeModalOpen, setVisualizeModalOpen] = useState(false)
+  const [selectedConfigForVisualize, setSelectedConfigForVisualize] = useState<string | null>(null)
   const { toast } = useToast()
 
   const handleDelete = async (configId: string) => {
@@ -173,15 +177,27 @@ export default function ConfigsPage() {
                           ⚡ Quick Test
                         </Button>
                         <Button
-                          variant="destructive"
+                          variant="outline"
                           size="sm"
-                          onClick={() => handleDelete(config.id)}
-                          disabled={deleteConfig.isPending}
+                          onClick={() => {
+                            setSelectedConfigForVisualize(config.id)
+                            setVisualizeModalOpen(true)
+                          }}
                           className="flex-1"
+                          disabled={config.status !== 'ready'}
                         >
-                          Delete
+                          🔍 Visualize
                         </Button>
                       </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(config.id)}
+                        disabled={deleteConfig.isPending}
+                        className="w-full mt-2"
+                      >
+                        Delete
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}
@@ -195,6 +211,18 @@ export default function ConfigsPage() {
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
         />
+
+        {selectedConfigForVisualize && (
+          <VisualizeChunksModal
+            projectId={projectId!}
+            configId={selectedConfigForVisualize}
+            isOpen={visualizeModalOpen}
+            onClose={() => {
+              setVisualizeModalOpen(false)
+              setSelectedConfigForVisualize(null)
+            }}
+          />
+        )}
     </div>
   )
 }

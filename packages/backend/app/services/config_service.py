@@ -8,6 +8,13 @@ from app.models.config import Config
 from app.models.chunk import Chunk
 from app.models.document import Document
 from app.schemas.config import ConfigCreate, ConfigUpdate
+from app.schemas.chunk_visualization import (
+    ChunkVisualizationResponse,
+    ChunkBoundary,
+    OverlapRegion,
+    ChunkStatistics,
+)
+from app.schemas.similarity import SimilarityMatrixResponse
 from app.core.chunking import ChunkingService
 from app.core.embedding import EmbeddingService, get_model_dimensions
 
@@ -185,3 +192,246 @@ class ConfigService:
         await self.db.delete(config)
         await self.db.commit()
         return True
+
+    async def build_chunk_visualization(
+        self,
+        config_id: UUID,
+        document_id: UUID,
+    ) -> ChunkVisualizationResponse:
+        """
+        Build chunk visualization for a specific document and config.
+
+        This method:
+        1. Gets all chunks for the config+document
+        2. Finds each chunk's position in the original document text
+        3. Detects overlaps between consecutive chunks
+        4. Calculates statistics
+
+        Args:
+            config_id: Config UUID
+            document_id: Document UUID
+
+        Returns:
+            ChunkVisualizationResponse with complete visualization data
+
+        Raises:
+            ValueError: If config or document not found
+        """
+        # Get config
+        config = await self.get_config(config_id)
+        if not config:
+            raise ValueError(f"Config {config_id} not found")
+
+        # Get document
+        doc_query = select(Document).where(Document.id == document_id)
+        doc_result = await self.db.execute(doc_query)
+        document = doc_result.scalar_one_or_none()
+        if not document:
+            raise ValueError(f"Document {document_id} not found")
+
+        # Get all chunks for this config+document, ordered by chunk_index
+        chunks_query = (
+            select(Chunk)
+            .where(Chunk.config_id == config_id)
+            .where(Chunk.document_id == document_id)
+            .order_by(Chunk.chunk_index)
+        )
+        chunks_result = await self.db.execute(chunks_query)
+        chunks = list(chunks_result.scalars().all())
+
+        if not chunks:
+            raise ValueError(
+                f"No chunks found for config {config_id} and document {document_id}"
+            )
+
+        # Find chunk positions in document text
+        full_text = document.content
+        chunk_boundaries: list[ChunkBoundary] = []
+        overlap_regions: list[OverlapRegion] = []
+
+        current_pos = 0
+        for chunk in chunks:
+            # Find chunk position in document (simple string search)
+            # In production, you might want fuzzy matching if text was modified
+            chunk_start = full_text.find(chunk.content, current_pos)
+
+            if chunk_start == -1:
+                # Fallback: try from beginning
+                chunk_start = full_text.find(chunk.content)
+
+            if chunk_start == -1:
+                # Chunk not found - this shouldn't happen but handle gracefully
+                chunk_start = current_pos
+                chunk_end = current_pos + len(chunk.content)
+            else:
+                chunk_end = chunk_start + len(chunk.content)
+
+            # Create chunk boundary
+            boundary = ChunkBoundary(
+                chunk_id=chunk.id,
+                start_pos=chunk_start,
+                end_pos=chunk_end,
+                chunk_index=chunk.chunk_index,
+                content_preview=chunk.content[:100],
+                token_count=chunk.chunk_metadata.get("token_count", len(chunk.content) // 4),
+                metadata=chunk.chunk_metadata or {},
+            )
+            chunk_boundaries.append(boundary)
+
+            # Detect overlap with previous chunk
+            if len(chunk_boundaries) > 1:
+                prev_boundary = chunk_boundaries[-2]
+                if chunk_start < prev_boundary.end_pos:
+                    # Overlap detected
+                    overlap_start = chunk_start
+                    overlap_end = prev_boundary.end_pos
+                    overlap_text = full_text[overlap_start:overlap_end]
+
+                    overlap = OverlapRegion(
+                        chunk_a_id=prev_boundary.chunk_id,
+                        chunk_b_id=boundary.chunk_id,
+                        start_pos=overlap_start,
+                        end_pos=overlap_end,
+                        overlap_text=overlap_text,
+                    )
+                    overlap_regions.append(overlap)
+
+            # Update position for next search
+            current_pos = chunk_end
+
+        # Calculate statistics
+        chunk_sizes = [b.end_pos - b.start_pos for b in chunk_boundaries]
+        overlap_sizes = [o.end_pos - o.start_pos for o in overlap_regions]
+
+        statistics = ChunkStatistics(
+            total_chunks=len(chunk_boundaries),
+            avg_chunk_size=sum(chunk_sizes) / len(chunk_sizes) if chunk_sizes else 0,
+            min_chunk_size=min(chunk_sizes) if chunk_sizes else 0,
+            max_chunk_size=max(chunk_sizes) if chunk_sizes else 0,
+            total_overlap_chars=sum(overlap_sizes),
+            avg_overlap_size=sum(overlap_sizes) / len(overlap_sizes) if overlap_sizes else 0,
+            coverage=(
+                (sum(chunk_sizes) - sum(overlap_sizes)) / len(full_text) * 100
+                if full_text
+                else 0
+            ),
+        )
+
+        return ChunkVisualizationResponse(
+            document_id=document.id,
+            document_filename=document.filename,
+            config_id=config.id,
+            config_name=config.name,
+            full_text=full_text,
+            total_length=len(full_text),
+            chunks=chunk_boundaries,
+            overlaps=overlap_regions,
+            statistics=statistics,
+            chunk_strategy=config.chunk_strategy,
+            chunk_size=config.chunk_size,
+            chunk_overlap=config.chunk_overlap,
+        )
+
+    async def build_similarity_matrix(
+        self,
+        config_id: UUID,
+        document_id: UUID,
+    ) -> SimilarityMatrixResponse:
+        """
+        Build similarity matrix for chunks in a document.
+
+        Calculates cosine similarity between all pairs of chunks
+        using their embeddings.
+
+        Args:
+            config_id: Config UUID
+            document_id: Document UUID
+
+        Returns:
+            SimilarityMatrixResponse with NxN similarity matrix
+
+        Raises:
+            ValueError: If config/document not found or chunks have no embeddings
+        """
+        # Get config
+        config = await self.get_config(config_id)
+        if not config:
+            raise ValueError(f"Config {config_id} not found")
+
+        # Get all chunks for this config+document, ordered by chunk_index
+        chunks_query = (
+            select(Chunk)
+            .where(Chunk.config_id == config_id)
+            .where(Chunk.document_id == document_id)
+            .order_by(Chunk.chunk_index)
+        )
+        chunks_result = await self.db.execute(chunks_query)
+        chunks = list(chunks_result.scalars().all())
+
+        if not chunks:
+            raise ValueError(
+                f"No chunks found for config {config_id} and document {document_id}"
+            )
+
+        # Check if chunks have embeddings
+        if chunks[0].embedding is None or len(chunks[0].embedding) == 0:
+            raise ValueError(
+                f"Chunks for config {config_id} have no embeddings. "
+                "Similarity matrix requires dense embeddings."
+            )
+
+        # Calculate similarity matrix
+        import numpy as np
+
+        n = len(chunks)
+        similarity_matrix = [[0.0 for _ in range(n)] for _ in range(n)]
+        all_similarities = []
+
+        for i, chunk_a in enumerate(chunks):
+            for j, chunk_b in enumerate(chunks):
+                if i == j:
+                    # Self-similarity is always 1.0
+                    similarity_matrix[i][j] = 1.0
+                else:
+                    # Calculate cosine similarity
+                    embedding_a = np.array(chunk_a.embedding)
+                    embedding_b = np.array(chunk_b.embedding)
+
+                    similarity = float(
+                        np.dot(embedding_a, embedding_b)
+                        / (np.linalg.norm(embedding_a) * np.linalg.norm(embedding_b))
+                    )
+                    similarity_matrix[i][j] = similarity
+                    all_similarities.append(similarity)
+
+        # Calculate statistics
+        avg_similarity = sum(all_similarities) / len(all_similarities) if all_similarities else 0.0
+        min_similarity = min(all_similarities) if all_similarities else 0.0
+        max_similarity = max(all_similarities) if all_similarities else 0.0
+
+        # Find discontinuities (adjacent chunks with low similarity)
+        discontinuity_threshold = 0.5  # Configurable
+        discontinuities = []
+
+        for i in range(len(chunks) - 1):
+            similarity = similarity_matrix[i][i + 1]
+            if similarity < discontinuity_threshold:
+                discontinuities.append({
+                    "chunk_a_index": i,
+                    "chunk_b_index": i + 1,
+                    "chunk_a_id": str(chunks[i].id),
+                    "chunk_b_id": str(chunks[i + 1].id),
+                    "similarity": similarity,
+                    "severity": "high" if similarity < 0.3 else "medium",
+                })
+
+        return SimilarityMatrixResponse(
+            document_id=document_id,
+            config_id=config_id,
+            chunk_ids=[chunk.id for chunk in chunks],
+            similarity_matrix=similarity_matrix,
+            avg_similarity=avg_similarity,
+            min_similarity=min_similarity,
+            max_similarity=max_similarity,
+            discontinuities=discontinuities,
+        )

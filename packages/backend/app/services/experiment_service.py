@@ -11,7 +11,9 @@ from app.models.result import Result
 from app.models.query import Query
 from app.models.config import Config
 from app.models.chunk import Chunk
+from app.models.document import Document
 from app.schemas.experiment import ExperimentCreate
+from app.schemas.document_context import DocumentContextResponse, RetrievedChunkInfo
 from app.core.embedding import EmbeddingService
 from app.core.retrieval import RetrievalService
 from app.core.evaluation.evaluator import EvaluationService
@@ -233,6 +235,7 @@ class ExperimentService:
                 continue
 
             config_data = {
+                "sanity": [],
                 "config_id": str(config_id),
                 "config_name": config.name,
                 "results": [],
@@ -268,6 +271,8 @@ class ExperimentService:
 
                 config_data["results"].append(
                     {
+                        "ding": "dong",
+                        "result_id": str(result.id),  # Add result ID for context view
                         "query_id": str(result.query_id),
                         "query_text": query.query_text,
                         "chunks": result_chunks,
@@ -277,6 +282,8 @@ class ExperimentService:
                         "evaluation_cost_usd": float(result.evaluation_cost_usd) if result.evaluation_cost_usd else None,
                     }
                 )
+
+
 
                 if result.score is not None:
                     scores.append(result.score)
@@ -293,6 +300,7 @@ class ExperimentService:
 
         return {
             "experiment_id": str(experiment.id),
+            "hallo":"Hallo",
             "configs": list(config_results.values()),
         }
 
@@ -456,4 +464,122 @@ class ExperimentService:
             latency_ms=latency_ms,
             metrics=evaluation_result["metrics"],
             effective_params=effective_params
+        )
+
+    async def get_document_context_for_result(
+        self,
+        result_id: UUID,
+    ) -> DocumentContextResponse:
+        """
+        Get document with retrieved chunks highlighted.
+
+        Shows the full document text with retrieved chunks marked,
+        allowing users to see context around retrieved chunks.
+
+        Args:
+            result_id: Result UUID
+
+        Returns:
+            DocumentContextResponse with document and highlighted chunks
+
+        Raises:
+            ValueError: If result not found
+        """
+        # Get result
+        result_query = select(Result).where(Result.id == result_id)
+        result_result = await self.db.execute(result_query)
+        result = result_result.scalar_one_or_none()
+
+        if not result:
+            raise ValueError(f"Result {result_id} not found")
+
+        # Get query
+        query_query = select(Query).where(Query.id == result.query_id)
+        query_result = await self.db.execute(query_query)
+        query = query_result.scalar_one_or_none()
+
+        # Get config
+        config_query = select(Config).where(Config.id == result.config_id)
+        config_result = await self.db.execute(config_query)
+        config = config_result.scalar_one_or_none()
+
+        if not config:
+            raise ValueError(f"Config {result.config_id} not found")
+
+        # Get all retrieved chunks
+        chunks_query = select(Chunk).where(Chunk.id.in_(result.retrieved_chunk_ids))
+        chunks_result = await self.db.execute(chunks_query)
+        retrieved_chunks = list(chunks_result.scalars().all())
+
+        # Get document (from first chunk)
+        if not retrieved_chunks:
+            raise ValueError(f"No retrieved chunks found for result {result_id}")
+
+        document_id = retrieved_chunks[0].document_id
+        doc_query = select(Document).where(Document.id == document_id)
+        doc_result = await self.db.execute(doc_query)
+        document = doc_result.scalar_one_or_none()
+
+        if not document:
+            raise ValueError(f"Document {document_id} not found")
+
+        # Get ALL chunks for this document+config (for context)
+        all_chunks_query = (
+            select(Chunk)
+            .where(Chunk.document_id == document_id)
+            .where(Chunk.config_id == config.id)
+            .order_by(Chunk.chunk_index)
+        )
+        all_chunks_result = await self.db.execute(all_chunks_query)
+        all_chunks = list(all_chunks_result.scalars().all())
+
+        # Build retrieved chunk info with ranks
+        retrieved_chunk_map = {chunk.id: chunk for chunk in retrieved_chunks}
+        retrieved_chunk_infos = []
+
+        for rank, chunk_id in enumerate(result.retrieved_chunk_ids, start=1):
+            chunk = retrieved_chunk_map.get(chunk_id)
+            if chunk:
+                # Find chunk position in document
+                chunk_start = document.content.find(chunk.content)
+                chunk_end = chunk_start + len(chunk.content) if chunk_start != -1 else -1
+
+                retrieved_chunk_infos.append(
+                    RetrievedChunkInfo(
+                        chunk_id=chunk.id,
+                        chunk_index=chunk.chunk_index,
+                        rank=rank,
+                        score=result.score,  # Could be per-chunk score if available
+                        start_pos=chunk_start if chunk_start != -1 else 0,
+                        end_pos=chunk_end if chunk_end != -1 else len(chunk.content),
+                        content=chunk.content,
+                    )
+                )
+
+        # Build all chunks info (for dimmed display)
+        all_chunks_info = []
+        for chunk in all_chunks:
+            chunk_start = document.content.find(chunk.content)
+            chunk_end = chunk_start + len(chunk.content) if chunk_start != -1 else -1
+
+            all_chunks_info.append({
+                "chunk_id": str(chunk.id),
+                "chunk_index": chunk.chunk_index,
+                "start_pos": chunk_start if chunk_start != -1 else 0,
+                "end_pos": chunk_end if chunk_end != -1 else len(chunk.content),
+                "is_retrieved": chunk.id in result.retrieved_chunk_ids,
+            })
+
+        return DocumentContextResponse(
+            document_id=document.id,
+            document_filename=document.filename,
+            full_text=document.content,
+            config_id=config.id,
+            config_name=config.name,
+            query_id=query.id if query else None,
+            query_text=query.query_text if query else None,
+            retrieved_chunks=retrieved_chunk_infos,
+            all_chunks=all_chunks_info,
+            total_chunks=len(all_chunks),
+            retrieved_count=len(retrieved_chunk_infos),
         )
